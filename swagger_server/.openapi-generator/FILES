@@ -1,0 +1,12 @@
+.openapi-generator-ignore
+Dockerfile
+api/openapi.yaml
+apiserver/README.md
+apiserver/api_health.go
+apiserver/api_platform.go
+apiserver/model_api_response.go
+apiserver/model_api_response_data.go
+apiserver/model_cypher.go
+apiserver/model_cypher_operation.go
+apiserver/routers.go
+main.go

@@ -1,0 +1,102 @@
+variables:
+  IMAGE_REPOSITORY: test1.com
+  IMAGE_REPOSITORY_SHANGHAI: test2.com
+  IMAGE_REPOSITORY_USERNAME: registry_user
+  REGISTRY_MIRROR_LONDON: docker-registry.io
+  REGISTRY_MIRROR_SHANGHAI: docker-registry.io
+  APP_IMAGE: $CI_PROJECT_NAME
+  KANIKO_IMAGE: kaniko-project-executor:debug
+  HELM_REPOSITORY: s3://helm.test.io/charts
+  AWS_DEFAULT_REGION: region
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+lint:
+  stage: lint
+  image: golang:1.17
+  tags:
+    - london
+  script:
+    - go vet swagger_server/main.go
+
+test:
+  stage: test
+  image: golang:1.17
+  tags:
+    - london
+  script:
+    - source bin/configuration.sh
+    - go test -v tests/platform_test.go 2> test.log & sleep 6; cat test.log
+    - export result="$( tail -n 1 test.log )"
+    # timeout error leads to unit test is not over: ...
+    - if echo $result | grep 'FAILED' ; then echo "fail"; exit 1; else echo "success"; exit 0; fi
+  only:
+    - disable
+
+.build: &build
+  stage: build
+  image:
+    name: $IMAGE_REPOSITORY_SHANGHAI$KANIKO_IMAGE
+    entrypoint: [""]
+  tags:
+    - shanghai
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$IMAGE_REPOSITORY_SHANGHAI\":{\"username\":\"$IMAGE_REPOSITORY_USERNAME\",\"password\":\"$ALIYUN_REGISTRY_PASS\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --context $CI_PROJECT_DIR
+      --dockerfile $CI_PROJECT_DIR/Dockerfile
+      --registry-mirror $REGISTRY_MIRROR_SHANGHAI
+      --cleanup
+      --destination $IMAGE_REPOSITORY_SHANGHAI$APP_IMAGE:$CI_COMMIT_SHORT_SHA
+
+shanghai:build:
+  <<: *build
+
+.deploy: &deploy
+  image: $IMAGE_REPOSITORY/test/kubevpn-proxy-helm3:3.3.0
+  before_script:
+    - mkdir -p /etc/deploy
+    - echo $KUBE_CFG_PROD | base64 -d > kubeconfig
+    - export KUBECONFIG=kubeconfig
+    - CONTEXT=$(kubectl config get-contexts | awk '{print $2}' | tail -n 1)
+    - echo $CONTEXT
+    - kubectl config use-context $CONTEXT
+    - export AWS_ACCESS_KEY_ID=$HELM_REPO_ACCESS_KEY
+    - export AWS_SECRET_ACCESS_KEY=$HELM_REPO_ACCESS_SECRET
+    - helm repo add test $HELM_REPOSITORY
+  script:
+    - helm upgrade --install
+      -f $HELM_VALUES_FILE
+      --set image.repository=$IMAGE_REPOSITORY_SHANGHAI$APP_IMAGE
+      --set image.tag=$CI_COMMIT_SHORT_SHA
+      --namespace $NAMESPACE
+      --wait
+      --timeout 420s
+      $RELEASE_NAME test/$CI_PROJECT_NAME || true
+  # https://docs.gitlab.com/ee/ci/yaml/#resource_group
+    - kubectl -n <namespace> get events --sort-by='{.lastTimestamp}' || true
+  resource_group: deploy_production
+
+
+production:deploy:
+  stage: deploy
+  tags:
+    - london
+  variables:
+    K8S_API_ENDPOINT: 10.1.1.1
+    RELEASE_NAME: $CI_PROJECT_NAME
+    NAMESPACE: utils
+    HELM_VALUES_FILE: helm_values.yaml
+  <<: *deploy
+  only:
+    - master
+    - develop
+
+ 
+
+ 
+ 

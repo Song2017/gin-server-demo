@@ -1,0 +1,178 @@
+openapi: 3.0.0
+info:
+  contact:
+    email: bensong2017@hotmail.com
+  description: This is the API descriptor for demo server
+  title: Demo Server
+  version: 1.0.0
+servers:
+- url: http://localhost:8000/
+tags:
+- description: paltform utils
+  name: platform
+- description: API for health metrics
+  name: health
+paths:
+  /platform/cypher:
+    post:
+      description: Batch operate cypher of paltform store
+      operationId: BatchOperateCypher
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cypher'
+        description: Cypher details
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+          description: The ciphertext has been processed successfully.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+          description: Invalid input.
+        "404":
+          description: The API does not work
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+          description: The ciphertext has been processed failed.
+      security:
+      - ca_key: []
+      summary: cypher
+      tags:
+      - platform
+  /health:
+    get:
+      operationId: GetHealth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: health status
+      summary: health
+      tags:
+      - health
+  /metrics:
+    get:
+      operationId: getMetrics
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: successed
+        "400":
+          description: Invalid input
+        "401":
+          description: 'Unauthorized: provided apikey is not valid'
+        "500":
+          description: Server error
+      summary: metrics
+      tags:
+      - health
+components:
+  schemas:
+    Cypher:
+      example:
+        storeId: platform.test
+        operation: DecryptBatch
+        items:
+        - test
+        platform: platform
+      properties:
+        storeId:
+          description: Platform store ID
+          example: platform.test
+          type: string
+        platform:
+          description: Platform name
+          example: platform
+          type: string
+        operation:
+          $ref: '#/components/schemas/CypherOperation'
+        items:
+          default: []
+          example:
+          - test
+          items:
+            type: string
+          maxItems: 100
+          type: array
+      required:
+      - operation
+      - platform
+      - storeId
+      title: Cypher
+      type: object
+    CypherOperation:
+      description: operation name, AreAllEncrypted, EncryptBatch and DecryptBatch
+      enum:
+      - AreAllEncrypted
+      - EncryptBatch
+      - DecryptBatch
+      example: DecryptBatch
+      title: CypherOperation
+      type: string
+    ApiResponse:
+      example:
+        code: 0
+        data:
+          areAllEncrypted: true
+          items:
+          - items
+          - items
+          - items
+          - items
+          - items
+        message: message
+      properties:
+        code:
+          format: int32
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ApiResponseData'
+      title: ApiResponse
+      type: object
+    ApiResponseData:
+      example:
+        areAllEncrypted: true
+        items:
+        - items
+        - items
+        - items
+        - items
+        - items
+      properties:
+        items:
+          default: []
+          items:
+            type: string
+          maxItems: 100
+          type: array
+        areAllEncrypted:
+          default: true
+          type: boolean
+      title: ApiResponseData
+      type: object
+  securitySchemes:
+    ca_key:
+      in: query
+      name: Authorization
+      type: apiKey
+    ca_stage:
+      in: header
+      name: x-ca-stage
+      type: apiKey
