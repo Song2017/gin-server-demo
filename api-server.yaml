@@ -1,0 +1,159 @@
+openapi: 3.0.0
+info:
+  title: Demo Server
+  description: This is the API descriptor for demo server
+  contact:
+    email: bensong2017@hotmail.com
+  version: 1.0.0
+servers:
+  - url: https://test.cn/
+    variables: {}
+paths:
+  /platform/cypher:
+    post:
+      tags:
+        - platform
+      summary: cypher
+      description: Batch operate cypher of paltform store
+      operationId: BatchOperateCypher
+      security:
+        - ca_key: []
+      requestBody:
+        description: Cypher details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cypher'
+      responses:
+        '200':
+          description: The ciphertext has been processed successfully.
+          headers: {}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Invalid input.
+          headers: {}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: The API does not work
+        '500':
+          description: The ciphertext has been processed failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /health:
+    get:
+      tags:
+        - health
+      summary: health
+      operationId: GetHealth
+      responses:
+        '200':
+          description: health status
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: string
+  /metrics:
+    get:
+      tags:
+        - health
+      summary: metrics
+      operationId: getMetrics
+      responses:
+        '200':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: successed
+        '400':
+          description: Invalid input
+        '401':
+          description: 'Unauthorized: provided apikey is not valid'
+        '500':
+          description: Server error
+components:
+  schemas:
+    Cypher:
+      title: Cypher
+      type: object
+      required:
+        - storeId
+        - platform
+        - operation
+      properties:
+        storeId:
+          type: string
+          description: Platform store ID
+          example: platform.test
+        platform:
+          type: string
+          description: Platform name
+          example: platform
+        operation:
+          $ref: '#/components/schemas/CypherOperation'
+        items:
+          type: array
+          default: []
+          example:
+            - test
+          items:
+            type: string
+          maxItems: 100
+    CypherOperation:
+      title: CypherOperation
+      type: string
+      description: operation name, AreAllEncrypted, EncryptBatch and DecryptBatch
+      example: DecryptBatch
+      enum:
+        - AreAllEncrypted
+        - EncryptBatch
+        - DecryptBatch
+    ApiResponse:
+      title: ApiResponse
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ApiResponseData'
+    ApiResponseData:
+      title: ApiResponseData
+      type: object
+      properties:
+        items:
+          type: array
+          default: []
+          items:
+            type: string
+          maxItems: 100
+        areAllEncrypted:
+          type: boolean
+          default: true
+  securitySchemes:
+    ca_key:
+      type: apiKey
+      description: ''
+      name: Authorization
+      in: query
+    ca_stage:
+      type: apiKey
+      description: ''
+      name: x-ca-stage
+      in: header
+tags:
+  - name: platform
+    description: paltform utils
+  - name: health
+    description: API for health metrics
